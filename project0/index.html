@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project 0: Becoming Friends with Your Camera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+
+<nav class="top">
+    <div class="nav-left">
+        <a href="../index.html">&larr; Home</a>
+        <div class="proj-nav">
+            <span class="proj-link current">Project 0</span>
+            <span class="proj-link disabled">Project 1 <span class="tbp">[TBP]</span></span>
+            <span class="proj-link disabled">Project 2 <span class="tbp">[TBP]</span></span>
+            <span class="proj-link disabled">Project 3 <span class="tbp">[TBP]</span></span>
+            <span class="proj-link disabled">Project 4 <span class="tbp">[TBP]</span></span>
+            <span class="proj-link disabled">Project 5 <span class="tbp">[TBP]</span></span>
+        </div>
+    </div>
+    <span>Project 0</span>
+</nav>
+
+<aside class="toc" aria-label="On this page">
+    <div class="toc-label">On this page</div>
+    <a href="#p1">Part 1</a>
+    <a href="#p2">Part 2</a>
+    <a href="#p3">Part 3</a>
+</aside>
+
+<section class="panel intro no-divider">
+    <div class="panel-inner">
+        <span class="tag">Project 0</span>
+        <h1>Becoming Friends with Your Camera</h1>
+    </div>
+</section>
+
+<section class="panel" id="p1">
+    <div class="panel-inner">
+        <span class="tag">01</span>
+        <h2>Part 1</h2>
+        <div class="cards">
+            <figure class="card">
+                <img src="original.JPG" alt="Original, close-up shot">
+                <figcaption>Close-up shot</figcaption>
+            </figure>
+            <figure class="card">
+                <img src="zoom.JPG" alt="Zoomed-in shot from farther away">
+                <figcaption>Zoomed-in shot from farther away</figcaption>
+            </figure>
+        </div>
+        <p class="desc">The second picture looks better because the face looks more natural and proportional. In the close-up shot, the camera is very close to the face, so the nose which is prominent part of and  the center of the face appear larger while the sides of the face seem farther away. After I stepped back and zoomed in, these differences became less noticeable and her facial features looked more balanced. The longer focal length helped me keep her face at a similar size in the frame while shooting from farther away.</p>
+    </div>
+</section>
+
+<section class="panel" id="p2">
+    <div class="panel-inner">
+        <span class="tag">02</span>
+        <h2>Part 2</h2>
+        <div class="cards">
+            <figure class="card card--full">
+                <img src="forward.JPG" alt="Camera moved forward">
+                <figcaption>With zoom</figcaption>
+            </figure>
+            <figure class="card card--full">
+                <img src="move.JPG" alt="Camera moved sideways">
+                <figcaption>Without zoom</figcaption>
+            </figure>
+        </div>
+        <p class="desc">Similar to the previous part, the first picture looks better because taking the photo from farther away reduces perspective distortion. When I walked closer to the building, its position relative to me also changed. Instead of being in front of me, part of the building was diagonally above me/my camera. This change in viewpoint makes the depth and shape of the building look more exaggerated. In comparison, zooming in from farther away keeps the building at a similar size in the frame while making the overall perspective look flatter and more natural.</p>
+    </div>
+</section>
+
+<section class="panel" id="p3">
+    <div class="panel-inner">
+        <span class="tag">03</span>
+        <h2>Part 3</h2>
+        <p class="desc">In this part, I recreated the dolly zoom effect by changing both the camera distance and the focal length. As I moved closer to the subject, I zoomed out to keep the subject at roughly the same size in the frame. Although the subject stays relatively stable, the background changes dramatically because of the changing perspective. I can see why this effect is often used in films to create a sense of tension or draw the viewer’s attention strongly toward the subject.</p>
+        <div class="cards">
+            <figure class="card">
+                <img src="dolly_zoom.gif" alt="Dolly zoom effect, animated">
+                <figcaption>GIF</figcaption>
+            </figure>
+            <figure class="card">
+                <video src="dolly_zoom.MOV" controls playsinline muted loop></video>
+                <figcaption>Video</figcaption>
+            </figure>
+        </div>
+    </div>
+</section>
+
+<script>
+(function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+    var sections = links.map(function (a) {
+        return document.querySelector(a.getAttribute('href'));
+    });
+    function onScroll() {
+        var pos = window.scrollY + 160;
+        var current = 0;
+        sections.forEach(function (sec, i) {
+            if (sec && sec.offsetTop <= pos) current = i;
+        });
+        links.forEach(function (a, i) {
+            a.classList.toggle('active', i === current);
+        });
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+})();
+</script>
+
+</body>
+</html>
