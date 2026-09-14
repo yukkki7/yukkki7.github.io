@@ -207,6 +207,10 @@ h2 { font-size: clamp(2rem, 4.5vw, 3.2rem); }
     .toc { display: none; }
 }
 
+@media (min-width: 1501px) {
+    .panel { padding-right: max(5vw, 240px); }
+}
+
 .desc {
     font-size: 1.05rem;
     line-height: 1.7;

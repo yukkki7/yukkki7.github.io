@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+# project1: code + raw/source images must not be hosted publicly (see submitting.html)
+project1/*.py
+project1/*.tif
+project1/cathedral.jpg
+project1/monastery.jpg
+project1/tobolsk.jpg
+project1/out/
+project1/venv/
