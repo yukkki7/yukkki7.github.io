@@ -42,34 +42,13 @@
         color: #111111;
         margin-bottom: 2px;
     }
-    .tabs { margin-top: 1.5rem; }
-    .tab-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        border-bottom: 1px solid #e5e5e5;
-        padding-bottom: 14px;
+    .method-block { margin-top: 2.5rem; }
+    .method-block:first-child { margin-top: 1.5rem; }
+    .method-block h3 {
+        font-family: 'Playfair Display', Georgia, serif;
+        margin-bottom: 0.3rem;
     }
-    .tab-btn {
-        font-family: 'Jost', sans-serif;
-        font-size: 0.85rem;
-        padding: 10px 20px;
-        border-radius: 999px;
-        border: 1px solid #cccccc;
-        background: #ffffff;
-        color: #444444;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-    .tab-btn:hover { border-color: #111111; color: #111111; }
-    .tab-btn.active {
-        background: #111111;
-        border-color: #111111;
-        color: #ffffff;
-    }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-    .tab-note {
+    .method-note {
         margin-top: 1rem;
         font-size: 0.9rem;
         color: #8a8a8a;
@@ -244,31 +223,26 @@
     <div class="panel-inner">
         <span class="tag">04</span>
         <h2>Results</h2>
-        <p class="desc">All 17 images (14 provided + 3 chosen on my own: <em>dam</em>, <em>suna</em>, <em>vItali</em>), run through all four method &times; metric combinations. Switch tabs to compare. Each caption shows the recovered (row, column) shift for the green and red channels relative to blue, and time used to align.</p>
+        <p class="desc">All 17 images (14 provided + 3 chosen on my own: <em>dam</em>, <em>suna</em>, <em>vItali</em>), run through all four method &times; metric combinations. Each caption shows the recovered (row, column) shift for the green and red channels relative to blue, and time used to align.</p>
 
-        <div class="tabs">
-            <div class="tab-buttons">
-                <button class="tab-btn active" data-tab="pyramid-ncc">Pyramid + NCC</button>
-                <button class="tab-btn" data-tab="pyramid-l2">Pyramid + L2</button>
-                <button class="tab-btn" data-tab="basic-ncc">Single-scale + NCC</button>
-                <button class="tab-btn" data-tab="basic-l2">Single-scale + L2</button>
-            </div>
-
-            <div class="tab-panel active" id="tab-pyramid-ncc">
-                <div class="result-grid" data-method="pyramid-ncc"></div>
-            </div>
-            <div class="tab-panel" id="tab-pyramid-l2">
-                <div class="result-grid" data-method="pyramid-l2"></div>
-                <p class="tab-note">Same normalized-L2 metric as NCC after preprocessing — results match the NCC tab almost shift-for-shift (see Metrics above for why).</p>
-            </div>
-            <div class="tab-panel" id="tab-basic-ncc">
-                <div class="result-grid" data-method="basic-ncc"></div>
-                <p class="tab-note">Single-scale search is capped at &plusmn;15px. Most .tif scans need 50&ndash;180px, so shifts pinned at exactly &plusmn;15 below are the search window maxing out, not a correct answer — expected, per the assignment's own note that single-scale is assumed satisfied once the pyramid method works.</p>
-            </div>
-            <div class="tab-panel" id="tab-basic-l2">
-                <div class="result-grid" data-method="basic-l2"></div>
-                <p class="tab-note">Same &plusmn;15px ceiling as single-scale NCC above.</p>
-            </div>
+        <div class="method-block">
+            <h3>Pyramid + NCC</h3>
+            <div class="result-grid" data-method="pyramid-ncc"></div>
+        </div>
+        <div class="method-block">
+            <h3>Pyramid + L2</h3>
+            <div class="result-grid" data-method="pyramid-l2"></div>
+            <p class="method-note">Same normalized-L2 metric as NCC after preprocessing — results match the NCC section above almost shift-for-shift (see Metrics above for why).</p>
+        </div>
+        <div class="method-block">
+            <h3>Single-scale + NCC</h3>
+            <div class="result-grid" data-method="basic-ncc"></div>
+            <p class="method-note">Single-scale search is capped at &plusmn;15px. Most .tif scans need 50&ndash;180px, so shifts pinned at exactly &plusmn;15 below are the search window maxing out, not a correct answer — expected, per the assignment's own note that single-scale is assumed satisfied once the pyramid method works.</p>
+        </div>
+        <div class="method-block">
+            <h3>Single-scale + L2</h3>
+            <div class="result-grid" data-method="basic-l2"></div>
+            <p class="method-note">Same &plusmn;15px ceiling as single-scale NCC above.</p>
         </div>
     </div>
 </section>
@@ -350,7 +324,6 @@ const SHIFTS = {
 };
 
 const METHODS = ["pyramid-ncc", "pyramid-l2", "basic-ncc", "basic-l2"];
-const loadedTabs = new Set();
 
 function fmtShift(s) { return "(" + s[0] + ", " + s[1] + ")"; }
 
@@ -361,7 +334,7 @@ function buildGrid(method) {
         const card = document.createElement('figure');
         card.className = 'result-card';
         const img = document.createElement('img');
-        img.dataset.src = 'results/' + method + '/' + name + '.jpg';
+        img.src = 'results/' + method + '/' + name + '.jpg';
         img.alt = name + ' aligned with ' + method;
         img.loading = 'lazy';
         const cap = document.createElement('figcaption');
@@ -373,28 +346,6 @@ function buildGrid(method) {
 }
 
 METHODS.forEach(buildGrid);
-
-function activateTab(method) {
-    if (!loadedTabs.has(method)) {
-        document.querySelectorAll('.result-grid[data-method="' + method + '"] img[data-src]').forEach(function (img) {
-            img.src = img.dataset.src;
-            img.removeAttribute('data-src');
-        });
-        loadedTabs.add(method);
-    }
-    document.querySelectorAll('.tab-btn').forEach(function (b) {
-        b.classList.toggle('active', b.dataset.tab === method);
-    });
-    document.querySelectorAll('.tab-panel').forEach(function (p) {
-        p.classList.toggle('active', p.id === 'tab-' + method);
-    });
-}
-
-document.querySelectorAll('.tab-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () { activateTab(btn.dataset.tab); });
-});
-
-activateTab('pyramid-ncc');
 
 (function () {
     var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
