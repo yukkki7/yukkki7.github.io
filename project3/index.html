@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project 3: Flow Models</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+    h3 {
+        font-family: 'Playfair Display', Georgia, serif;
+        margin: 2.2rem 0 0.4rem;
+    }
+    .grid {
+        display: grid;
+        gap: 1.2rem;
+        margin: 1.2rem 0 1.8rem;
+        align-items: start;
+    }
+    .g1 { grid-template-columns: 1fr; }
+    .g2 { grid-template-columns: repeat(2, 1fr); }
+    .g3 { grid-template-columns: repeat(3, 1fr); }
+    .g6 { grid-template-columns: repeat(6, 1fr); }
+    .grid.narrow { max-width: 900px; }
+    .grid.small { max-width: 420px; }
+    .grid figure {
+        margin: 0;
+        background: #ffffff;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        padding: 8px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    }
+    .grid img {
+        display: block;
+        width: 100%;
+        border-radius: 6px;
+        background: #f2f2f2;
+    }
+    .grid img.px { image-rendering: pixelated; }
+    .grid figcaption {
+        margin-top: 8px;
+        font-size: 0.8rem;
+        color: #666666;
+        line-height: 1.5;
+    }
+    .grid figcaption b { color: #111111; font-weight: 600; }
+    pre.code {
+        background: #f7f7f7;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        padding: 16px 20px;
+        font-size: 0.82rem;
+        line-height: 1.55;
+        overflow-x: auto;
+        margin: 1rem 0 1.6rem;
+    }
+    .todo {
+        background: #fff6d6;
+        border-left: 3px solid #e0b400;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        color: #6b5600;
+    }
+    table.simple {
+        border-collapse: collapse;
+        font-size: 0.9rem;
+        margin: 1rem 0 1.6rem;
+    }
+    table.simple th, table.simple td {
+        text-align: left;
+        padding: 8px 16px;
+        border-bottom: 1px solid #ececec;
+    }
+    table.simple th {
+        color: #8a8a8a;
+        font-weight: 500;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    section.panel[id] { scroll-margin-top: 90px; }
+    @media (max-width: 900px) {
+        .g6 { grid-template-columns: repeat(3, 1fr); }
+        .g3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px) {
+        .g2, .g3, .g6 { grid-template-columns: 1fr; }
+    }
+    @media print {
+        .toc, nav.top { display: none; }
+        .grid figure, section.panel { break-inside: avoid; }
+        .todo { display: none; }
+    }
+</style>
+</head>
+<body>
+
+<nav class="top">
+    <div class="nav-left">
+        <a href="../index.html">&larr; Home</a>
+        <div class="proj-nav">
+            <a href="../project0/index.html" class="proj-link">Project 0</a>
+            <a href="../project1/index.html" class="proj-link">Project 1</a>
+            <a href="../project2/index.html" class="proj-link">Project 2</a>
+            <span class="proj-link current">Project 3</span>
+            <span class="proj-link disabled">Project 4 <span class="tbp">[TBP]</span></span>
+            <span class="proj-link disabled">Project 5 <span class="tbp">[TBP]</span></span>
+        </div>
+    </div>
+    <span>Project 3</span>
+</nav>
+
+<aside class="toc" aria-label="On this page">
+    <div class="toc-label">Part A</div>
+    <a href="#p11">1.1 Forward Process</a>
+    <a href="#p12">1.2 Classical Denoising</a>
+    <a href="#p13">1.3 One-Step Denoising</a>
+    <a href="#p14">1.4 Visualizing Velocity</a>
+    <a href="#p15">1.5 Euler Sampling</a>
+    <a href="#p16">1.6 Generating from Noise</a>
+    <a href="#p21">2.1 CFG</a>
+    <a href="#p31">3.1 Image-to-Image</a>
+    <a href="#p32">3.2 Text-Guided Editing</a>
+    <a href="#p33">3.3 Visual Anagrams</a>
+    <a href="#p34">3.4 Hybrid Images</a>
+    <div class="toc-label">Part B</div>
+    <a href="#b11">1.1 UNet</a>
+    <a href="#b12">1.2 Noising</a>
+    <a href="#b121">1.2.1 Training</a>
+    <a href="#b122">1.2.2 OOD Testing</a>
+    <a href="#b123">1.2.3 Pure Noise</a>
+    <a href="#b21">2.1 Time Conditioning</a>
+    <a href="#b22">2.2&ndash;2.3 Time-Conditioned FM</a>
+    <a href="#b24">2.4 Class Conditioning</a>
+    <a href="#b25">2.5&ndash;2.6 Class-Conditioned FM</a>
+    <a href="#b26s">No Scheduler</a>
+</aside>
+
+<section class="panel intro no-divider">
+    <div class="panel-inner">
+        <span class="tag">Project 3</span>
+        <h1>Flow Models</h1>
+        <p class="desc">This project has two parts. In <b>Part A</b>, I use the pretrained text-to-image flow model PixNerd-XXL-P16-T2I (512&times;512 outputs) to denoise, generate and edit images. Flow time runs from t = 0 (pure Gaussian noise) to t = 1 (a clean image), with x<sub>t</sub> = (1 &minus; t)&epsilon; + t x<sub>1</sub>. The model predicts the velocity v<sub>&theta;</sub>(x<sub>t</sub>, t, c), and images are sampled by integrating this velocity with Euler steps. Unless stated otherwise, the step size is h = 0.02, the CFG weight is w = 7, and the seed is 180. In <b>Part B</b>, I build a UNet from scratch and train it on MNIST: first as a one-step denoiser, then as a flow matching model conditioned on time, and finally on both time and digit class with classifier-free guidance.</p>
+    </div>
+</section>
+
+<!-- ============================== 1.1 ============================== -->
+<section class="panel" id="p11">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 1.1</span>
+        <h2>Constructing Noisy Training Inputs</h2>
+        <p class="desc">The forward process mixes a clean image x<sub>1</sub> with Gaussian noise &epsilon;. One noise tensor is sampled once and reused for all three times. At t = 0 the result is exactly the noise and at t = 1 it is exactly the image.</p>
+<pre class="code">x_t = (1 − t) · ε + t · x₁          # ε ~ N(0, I), sampled once and reused</pre>
+        <div class="grid g1">
+            <figure><img src="results/forward_process.jpg" alt="Original bridge photo and noisy versions at t = 0.25, 0.5, 0.75" loading="lazy"><figcaption><b>My image and its noisy versions</b> at t = 0.25, 0.50, 0.75. Larger t keeps more of the image.</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== 1.2 ============================== -->
+<section class="panel" id="p12">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 1.2</span>
+        <h2>Classical Denoising</h2>
+        <p class="desc">As a baseline without a learned model, I first divide by t to restore the image amplitude (x<sub>t</sub>/t = x<sub>1</sub> + ((1 &minus; t)/t)&epsilon;), then apply a Gaussian blur. For each noise level I tried &sigma; &isin; {1, 2, 4, 8, 16} and kept the one with the lowest MSE to the clean image.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/blur_025.jpg" alt="Gaussian blur at t = 0.25" loading="lazy"><figcaption><b>t = 0.25</b>: noisy input and best Gaussian blur</figcaption></figure>
+            <figure><img src="results/blur_050.jpg" alt="Gaussian blur at t = 0.5" loading="lazy"><figcaption><b>t = 0.50</b>: noisy input and best Gaussian blur</figcaption></figure>
+            <figure><img src="results/blur_075.jpg" alt="Gaussian blur at t = 0.75" loading="lazy"><figcaption><b>t = 0.75</b>: noisy input and best Gaussian blur</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== 1.3 ============================== -->
+<section class="panel" id="p13">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 1.3</span>
+        <h2>One-Step Denoising</h2>
+        <p class="desc">With the prompt "a high quality photo", one velocity prediction is used to extrapolate straight to t = 1:</p>
+<pre class="code">x̂₁ = x_t + (1 − t) · v_θ(x_t, t, c)</pre>
+        <div class="grid g1">
+            <figure><img src="results/onestep_025.jpg" alt="One-step denoising at t = 0.25" loading="lazy"><figcaption><b>t = 0.25</b>: original, noisy input, one-step estimate</figcaption></figure>
+            <figure><img src="results/onestep_050.jpg" alt="One-step denoising at t = 0.5" loading="lazy"><figcaption><b>t = 0.50</b>: original, noisy input, one-step estimate</figcaption></figure>
+            <figure><img src="results/onestep_075.jpg" alt="One-step denoising at t = 0.75" loading="lazy"><figcaption><b>t = 0.75</b>: original, noisy input, one-step estimate</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== 1.4 ============================== -->
+<section class="panel" id="p14">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 1.4</span>
+        <h2>Visualizing Velocity</h2>
+        <p class="desc">For each saved noisy input I compare the update the model adds, (1 &minus; t)v&#770;<sub>t</sub>, with the update that would exactly recover my image, (1 &minus; t)v<sub>gt</sub> = x<sub>1</sub> &minus; x<sub>t</sub>. Both updates share one symmetric RGB scale with zero at middle gray. The error map is the per-pixel RMS over RGB, with the same color limits at all three times.</p>
+<pre class="code">predicted update  = (1 − t) · v_θ(x_t, t, c)
+ground truth      = (1 − t) · (x₁ − ε)  = x₁ − x_t
+error(pixel)      = sqrt( mean over RGB of (predicted − ground truth)² )</pre>
+        <div class="grid g3 narrow">
+            <figure><img src="results/own_image.jpg" alt="Original image" loading="lazy"><figcaption><b>Original image</b></figcaption></figure>
+        </div>
+        <div class="grid g1">
+            <figure><img src="results/velocity_025.jpg" alt="Velocity visualization at t = 0.25" loading="lazy"><figcaption><b>t = 0.25</b>: noisy image, predicted update, ground-truth update, error</figcaption></figure>
+            <figure><img src="results/velocity_050.jpg" alt="Velocity visualization at t = 0.5" loading="lazy"><figcaption><b>t = 0.50</b></figcaption></figure>
+            <figure><img src="results/velocity_075.jpg" alt="Velocity visualization at t = 0.75" loading="lazy"><figcaption><b>t = 0.75</b></figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== 1.5 ============================== -->
+<section class="panel" id="p15">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 1.5</span>
+        <h2>Iterative Denoising with Euler Sampling</h2>
+        <p class="desc">Euler sampling takes small steps x<sub>t+h</sub> = x<sub>t</sub> + h&middot;v(x<sub>t</sub>, t). It recomputes the velocity after every step and shortens the last step so it ends exactly at t = 1.</p>
+<pre class="code">x ← x_start,  t ← t_start
+while t &lt; 1:
+    h ← min(step_size, 1 − t)      # shorten the last step
+    x ← x + h · v(x, t)            # recompute velocity every step
+    t ← t + h
+return x</pre>
+        <h3>Trajectory (initial state, every fifth update, final)</h3>
+        <div class="grid g6">
+            <figure><img src="results/traj_t050.jpg" alt="t = 0.50" loading="lazy"><figcaption><b>t = 0.50</b> (start)</figcaption></figure>
+            <figure><img src="results/traj_t060.jpg" alt="t = 0.60" loading="lazy"><figcaption><b>t = 0.60</b></figcaption></figure>
+            <figure><img src="results/traj_t070.jpg" alt="t = 0.70" loading="lazy"><figcaption><b>t = 0.70</b></figcaption></figure>
+            <figure><img src="results/traj_t080.jpg" alt="t = 0.80" loading="lazy"><figcaption><b>t = 0.80</b></figcaption></figure>
+            <figure><img src="results/traj_t090.jpg" alt="t = 0.90" loading="lazy"><figcaption><b>t = 0.90</b></figcaption></figure>
+            <figure><img src="results/traj_t100.jpg" alt="t = 1.00" loading="lazy"><figcaption><b>t = 1.00</b> (final)</figcaption></figure>
+        </div>
+        <h3>Comparison on the same t = 0.50 input</h3>
+        <div class="grid g1">
+            <figure><img src="results/denoise_comparison.jpg" alt="Original, Gaussian blur, one-step and Euler results" loading="lazy"><figcaption><b>Original, Gaussian blur, one-step estimate, Euler denoising</b></figcaption></figure>
+        </div>
+        <table class="simple">
+            <tr><th>Method</th><th>MSE to original</th></tr>
+            <tr><td>Gaussian blur</td><td>0.0651</td></tr>
+            <tr><td>One-step</td><td>0.0370</td></tr>
+            <tr><td>Euler (25 steps)</td><td>0.0455</td></tr>
+        </table>
+        <p class="desc">Gaussian blur removes some noise but leaves blotchy color artifacts and wipes out the leaf texture. One-step denoising gives a clean but slightly soft result, since a single prediction averages over the many images consistent with the noisy input. Euler denoising produces the sharpest, most photo-like image, with crisp leaves, railings and water. Its MSE is still higher than one-step, because the details it adds are plausible but do not match the original pixel by pixel.</p>
+    </div>
+</section>
+
+<!-- ============================== 1.6 ============================== -->
+<section class="panel" id="p16">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 1.6</span>
+        <h2>Generating Images from Noise</h2>
+        <p class="desc">Setting t_start = 0 and starting from pure Gaussian noise turns the same sampler into a generator (50 Euler steps). Five seeds with the prompt "a high quality photo", without guidance:</p>
+        <div class="grid g1">
+            <figure><img src="results/samples_nocfg.jpg" alt="Five unguided samples" loading="lazy"><figcaption><b>Seeds 180&ndash;184</b>, "a high quality photo", no CFG</figcaption></figure>
+        </div>
+        <p class="desc">The prompt strongly favors generated photos of human(all five samples are people). But without guidance the quality is inconsistent. For example, Seed 180 has a blank face without eyes and nose, seed 183 has a distorted face without clear eyes, and the body on seeds 181 is naked and the structure is also wrong. Only seed 184 looks like a clean photo but still gives a unnatural feeling.</p>
+    </div>
+</section>
+
+<!-- ============================== 2.1 ============================== -->
+<section class="panel" id="p21">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 2.1</span>
+        <h2>Classifier-Free Guidance</h2>
+        <p class="desc">CFG evaluates the same x<sub>t</sub> and t with the prompt and with the empty prompt, then extrapolates away from the unconditional prediction: v<sub>cfg</sub> = v<sub>c</sub> + w(v<sub>c</sub> &minus; v<sub>u</sub>), with w = 7. Setting w = 0 reproduces the conditional prediction exactly (checked).</p>
+<pre class="code">v_c = v_θ(x_t, t, prompt)
+v_u = v_θ(x_t, t, "")             # empty prompt
+v_cfg = v_c + w · (v_c − v_u)       # w = 7</pre>
+        <div class="grid g1">
+            <figure><img src="results/samples_cfg.jpg" alt="Five CFG samples" loading="lazy"><figcaption><b>Same seeds 180&ndash;184</b>, w = 7</figcaption></figure>
+        </div>
+        <p class="desc">With the same initial noise, CFG fixes the artifacts from 1.6. Now every sample is now a sharp and realistic photo with a clear face and right structure.</p>
+    </div>
+</section>
+
+<!-- ============================== 3.1 ============================== -->
+<section class="panel" id="p31">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 3.1</span>
+        <h2>Image-to-Image Editing</h2>
+        <p class="desc">Following SDEdit, I noise an image to a starting time t<sub>start</sub> with the forward process and then integrate back to t = 1 with CFG and the prompt "a high quality photo". Smaller t<sub>start</sub> means more noise and a larger edit. Starting times: 0.02, 0.04, 0.06, 0.10, 0.14, 0.25, 0.50.</p>
+<pre class="code">x ← (1 − t_start) · ε + t_start · x₁     # noise the input to t_start
+integrate from t_start to 1 with Euler steps, using v_cfg
+return x</pre>
+        <h3>Campanile</h3>
+        <div class="grid g1"><figure><img src="results/edit_campanile.jpg" alt="Campanile edits" loading="lazy"></figure></div>
+        <h3>My image 1: bridge</h3>
+        <div class="grid g1"><figure><img src="results/edit_bridge.jpg" alt="Bridge edits" loading="lazy"></figure></div>
+        <h3>My image 2</h3>
+        <div class="grid g1"><figure><img src="results/edit_hachi.jpg" alt="Second image edits" loading="lazy"></figure></div>
+
+        <h3>Web image</h3>
+        <div class="grid g1"><figure><img src="results/edit_monalisa.jpg" alt="Web image edits" loading="lazy"></figure></div>
+        <h3>Hand-drawn image 1: house</h3>
+        <div class="grid g1"><figure><img src="results/edit_house.jpg" alt="House drawing edits" loading="lazy"></figure></div>
+        <h3>Hand-drawn image 2</h3>
+        <div class="grid g1"><figure><img src="results/edit_cherry.jpg" alt="Second drawing edits" loading="lazy"></figure></div>
+    </div>
+</section>
+
+<!-- ============================== 3.2 ============================== -->
+<section class="panel" id="p32">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 3.2</span>
+        <h2>Text-Guided Image Editing</h2>
+        <p class="desc">The same procedure and starting times as 3.1, but with a prompt that describes the edit instead of "a high quality photo".</p>
+        <h3>Campanile &rarr; syringe</h3>
+        <p class="desc">Prompt: "a photograph of a giant syringe standing upright with the needle pointing to the sky"</p>
+        <div class="grid g1"><figure><img src="results/text_campanile.jpg" alt="Campanile text-guided edits" loading="lazy"></figure></div>
+        <h3>Bridge &rarr; winter</h3>
+        <p class="desc">Prompt: "a photograph of a red bridge covered in snow in a winter forest"</p>
+        <div class="grid g1"><figure><img src="results/text_bridge.jpg" alt="Bridge text-guided edits" loading="lazy"></figure></div>
+        <h3>My image 2 &rarr; plush toy</h3>
+        <p class="desc">Prompt: "a photograph of a soft plush toy sitting on a table"</p>
+        <div class="grid g1"><figure><img src="results/text_hachi.jpg" alt="Second image text-guided edits" loading="lazy"></figure></div>
+    </div>
+</section>
+
+<!-- ============================== 3.3 ============================== -->
+<section class="panel" id="p33">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 3.3</span>
+        <h2>Visual Anagrams</h2>
+        <p class="desc">At every Euler step, the image is denoised upright with prompt p<sub>1</sub> and, after a 180&deg; rotation, with prompt p<sub>2</sub>. The second velocity is rotated back and the two are averaged: v = (v<sub>1</sub> + flip(v<sub>2</sub>))/2, where both are CFG velocities.</p>
+<pre class="code">for each Euler step at time t:
+    v₁ = v_cfg(x_t, t, p₁)
+    v₂ = flip( v_cfg(flip(x_t), t, p₂) )     # flip = rotate 180°
+    v  = (v₁ + v₂) / 2
+    x_t ← x_t + h · v</pre>
+        <div class="grid g2">
+            <figure><img src="results/anagram_girl_fox.jpg" alt="Girl / fox anagram" loading="lazy"><figcaption><b>Upright:</b> "an oil painting of a young girl with long hair"<br><b>Rotated 180&deg;:</b> "an oil painting of a fox"</figcaption></figure>
+            <figure><img src="results/anagram_girl_cat.jpg" alt="Girl in a hood / cat anagram" loading="lazy"><figcaption><b>Upright:</b> "an oil painting of a young girl wearing a hood"<br><b>Rotated 180&deg;:</b> "an oil painting of a cat"</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== 3.4 ============================== -->
+<section class="panel" id="p34">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 3.4</span>
+        <h2>Hybrid Images</h2>
+        <p class="desc">Following Factorized Diffusion, two CFG velocities are computed on the same x<sub>t</sub>. The low frequencies of the "distant" prompt are combined with the high frequencies of the "close" prompt: v = lowpass(v<sub>1</sub>) + (v<sub>2</sub> &minus; lowpass(v<sub>2</sub>)). The low-pass is a Gaussian blur with kernel size 265 and &sigma; = 16.</p>
+<pre class="code">for each Euler step at time t:
+    v₁ = v_cfg(x_t, t, p_distant)
+    v₂ = v_cfg(x_t, t, p_close)
+    v  = lowpass(v₁) + (v₂ − lowpass(v₂))     # Gaussian, kernel 265, σ = 16
+    x_t ← x_t + h · v</pre>
+        <h3>Bamboo forest / panda</h3>
+        <div class="grid g2 narrow">
+            <figure><img src="results/hybrid_panda.jpg" alt="Bamboo / panda hybrid, full size" loading="lazy"><figcaption><b>Full size (close):</b> "a lithograph of a bamboo forest"</figcaption></figure>
+            <figure><img class="px" src="results/hybrid_panda_small.png" alt="Bamboo / panda hybrid, 64 by 64" loading="lazy"><figcaption><b>64&times;64 (distant):</b> "a lithograph of a panda"</figcaption></figure>
+        </div>
+        <h3>Wildflowers / bunny</h3>
+        <div class="grid g2 narrow">
+            <figure><img src="results/hybrid_bunny.jpg" alt="Wildflowers / bunny hybrid, full size" loading="lazy"><figcaption><b>Full size (close):</b> "a lithograph of a field of wildflowers"</figcaption></figure>
+            <figure><img class="px" src="results/hybrid_bunny_small.png" alt="Wildflowers / bunny hybrid, 64 by 64" loading="lazy"><figcaption><b>64&times;64 (distant):</b> "a lithograph of a bunny"</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== PART B ============================== -->
+<section class="panel intro" id="partb">
+    <div class="panel-inner">
+        <span class="tag">Project 3 &middot; Part B</span>
+        <h1>Flow Matching from Scratch</h1>
+        <p class="desc">All models in Part B are trained on the MNIST training set (pixels in [0, 1]) and evaluated on the test set.</p>
+    </div>
+</section>
+
+<!-- ============================== B 1.1 ============================== -->
+<section class="panel" id="b11">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 1.1</span>
+        <h2>Implementing the UNet</h2>
+        <p class="desc">The denoiser is a small UNet built from simple blocks: <b>Conv</b> (3&times;3 conv + BatchNorm + GELU, same size), <b>DownConv</b> (stride-2 conv, halves the size), <b>UpConv</b> (transposed conv, doubles the size), <b>Flatten</b> (7&times;7 average pool to 1&times;1) and <b>Unflatten</b> (transposed conv from 1&times;1 back to 7&times;7). ConvBlock, DownBlock and UpBlock stack these to make the network deeper.</p>
+<pre class="code">input 1×28×28
+  ConvBlock → D×28×28 ──────────────────────────────┐ skip
+  DownBlock → D×14×14 ────────────────────┐ skip    │
+  DownBlock → 2D×7×7 ───────────┐ skip    │         │
+  Flatten   → 2D×1×1            │         │         │
+  Unflatten → 2D×7×7  ⊕ concat ─┘         │         │
+  UpBlock   → D×14×14 ⊕ concat ───────────┘         │
+  UpBlock   → D×28×28 ⊕ concat ─────────────────────┘
+  ConvBlock → D×28×28
+  Conv2d    → 1×28×28</pre>
+        <p class="desc">The encoder shrinks the image to a 1&times;1 summary of the whole digit, and the decoder expands it back. Skip connections concatenate encoder features of the same size into the decoder, so fine details lost during downsampling can be recovered.</p>
+    </div>
+</section>
+
+<!-- ============================== B 1.2 ============================== -->
+<section class="panel" id="b12">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 1.2</span>
+        <h2>Using the UNet to Train a Denoiser</h2>
+        <p class="desc">Training pairs are made by adding Gaussian noise to a clean digit: z = x + &sigma;&epsilon;, &epsilon; ~ N(0, I). The denoiser D<sub>&theta;</sub> is trained with the L2 loss &#8214;D<sub>&theta;</sub>(z) &minus; x&#8214;<sup>2</sup>.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b_noising.png" alt="Noising process" loading="lazy"><figcaption><b>Noising process</b> on one test digit, &sigma; = 0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0 (left to right)</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== B 1.2.1 ============================== -->
+<section class="panel" id="b121">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 1.2.1</span>
+        <h2>Training</h2>
+        <p class="desc">UNet with D = 128, trained for 5 epochs to denoise &sigma; = 0.5, with Adam (lr 1e-4) and batch size 256. Noise is drawn fresh every time a batch is loaded, so the network never sees the same noisy image twice.</p>
+<pre class="code">for each batch x from the training set:
+    z ← x + 0.5 · ε,   ε ~ N(0, I)
+    loss ← MSE(UNet(z), x)
+    gradient step on loss</pre>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b_denoise_loss.png" alt="Denoiser training loss" loading="lazy"><figcaption><b>Training loss</b> (light: every step, dark: 100-step average)</figcaption></figure>
+        </div>
+        <div class="grid g2">
+            <figure><img src="results/b_denoise_epoch1.png" alt="Denoising after epoch 1" loading="lazy"><figcaption><b>After epoch 1</b>. Rows: clean test digit, noisy input (&sigma; = 0.5), denoised output</figcaption></figure>
+            <figure><img src="results/b_denoise_epoch5.png" alt="Denoising after epoch 5" loading="lazy"><figcaption><b>After epoch 5</b>. Same layout</figcaption></figure>
+        </div>
+        <p class="desc">The loss drops from about 0.27 to under 0.02 within the first ~100 steps and then slowly approaches 0.01. After one epoch the digits are already recovered but slightly blurry; after five epochs the strokes are sharper and cleaner.</p>
+    </div>
+</section>
+
+<!-- ============================== B 1.2.2 ============================== -->
+<section class="panel" id="b122">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 1.2.2</span>
+        <h2>Out-of-Distribution Testing</h2>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b_ood.png" alt="Denoiser on different noise levels" loading="lazy"><figcaption><b>Same test digit, &sigma; = 0.0 to 1.0.</b> Top: noisy input. Bottom: output of the denoiser trained only on &sigma; = 0.5</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== B 1.2.3 ============================== -->
+<section class="panel" id="b123">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 1.2.3</span>
+        <h2>Denoising Pure Noise</h2>
+        <p class="desc">Same training setup as 1.2.1, but the input is pure noise z = &epsilon; with no digit in it, and the target is still a clean digit.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b_pure_loss.png" alt="Pure noise training loss" loading="lazy"><figcaption><b>Training loss</b></figcaption></figure>
+        </div>
+        <div class="grid g2">
+            <figure><img src="results/b_pure_epoch1.png" alt="Pure noise results after epoch 1" loading="lazy"><figcaption><b>After epoch 1</b>. Top: pure noise input. Bottom: output</figcaption></figure>
+            <figure><img src="results/b_pure_epoch5.png" alt="Pure noise results after epoch 5" loading="lazy"><figcaption><b>After epoch 5</b></figcaption></figure>
+        </div>
+        <p class="desc"><b>Pattern:</b> every input gives almost the same output which looks like several digits (3, 8, 9) overlapping with each other. The output barely changes between epoch 1 and epoch 5 and the loss flattens at about 0.07 after ~50 steps which is much higher than the ~0.01 reached in 1.2.1.</p>
+        <p class="desc"><b>Why:</b> the input noise is independent of the target digit so it carries no information about which digit to draw. Under an MSE loss, the best possible prediction when the target is unknown is the point that minimizes the average squared distance to all targets(i.e. the mean of the training images). The model learns to ignore its input and output this average digit and the loss is the average distance between training digits and their mean. One-step denoising therefore cannot generate clear and varied digits from noise.</p>
+    </div>
+</section>
+
+<!-- ============================== B 2.1 ============================== -->
+<section class="panel" id="b21">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 2.1</span>
+        <h2>Adding Time Conditioning to the UNet</h2>
+        <p class="desc">For flow matching the UNet predicts the velocity u<sub>&theta;</sub>(x<sub>t</sub>, t) &asymp; x<sub>1</sub> &minus; x<sub>0</sub> along the path x<sub>t</sub> = (1 &minus; t)x<sub>0</sub> + t x<sub>1</sub>, so it also needs to know t. The scalar t &isin; [0, 1] goes through two FCBlocks (Linear &rarr; GELU &rarr; Linear), giving one scale per channel, and these modulate the decoder:</p>
+<pre class="code">t₁ = FCBlock(1 → 2D)(t),   t₂ = FCBlock(1 → D)(t)
+unflatten ← unflatten * t₁        # 2D×7×7, scaled per channel
+up1       ← up1 * t₂              # D×14×14, scaled per channel
+everything else is the same as the unconditional UNet</pre>
+    </div>
+</section>
+
+<!-- ============================== B 2.2-2.3 ============================== -->
+<section class="panel" id="b22">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 2.2 &ndash; 2.3</span>
+        <h2>Training and Sampling the Time-Conditioned UNet</h2>
+        <p class="desc">D = 64, batch size 64, 10 epochs, Adam with initial lr 1e-2 and an exponential scheduler (&gamma; = 0.1<sup>1/10</sup>, stepped once per epoch). Sampling uses 50 Euler steps from pure noise, with a fixed seed so all epochs start from the same noise.</p>
+<pre class="code">Training (one batch):                       Sampling:
+  x₁ ← clean digits                           x ← N(0, I)
+  t ~ Uniform[0, 1],  x₀ ~ N(0, I)            for i = 0 … T−1:
+  x_t ← (1 − t)·x₀ + t·x₁                         t ← i / T
+  loss ← MSE(u_θ(x_t, t), x₁ − x₀)               x ← x + (1/T) · u_θ(x, t)
+  gradient step on loss                       return x</pre>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b_time_loss.png" alt="Time-conditioned UNet training loss" loading="lazy"><figcaption><b>Training loss</b>, time-conditioned UNet</figcaption></figure>
+        </div>
+        <div class="grid g3">
+            <figure><img src="results/b_time_epoch1.png" alt="Time-conditioned samples after epoch 1" loading="lazy"><figcaption><b>Epoch 1</b></figcaption></figure>
+            <figure><img src="results/b_time_epoch5.png" alt="Time-conditioned samples after epoch 5" loading="lazy"><figcaption><b>Epoch 5</b></figcaption></figure>
+            <figure><img src="results/b_time_epoch10.png" alt="Time-conditioned samples after epoch 10" loading="lazy"><figcaption><b>Epoch 10</b></figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== B 2.4 ============================== -->
+<section class="panel" id="b24">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 2.4</span>
+        <h2>Adding Class Conditioning to the UNet</h2>
+        <p class="desc">The digit class c is turned into a one-hot vector of length 10 and passed through two more FCBlocks. Class scales the features and time shifts them. To also learn an unconditional model for classifier-free guidance, c is replaced with the zero vector 10% of the time during training (p<sub>uncond</sub> = 0.1).</p>
+<pre class="code">c ← one_hot(c);   with probability 0.1:  c ← 0
+unflatten ← c₁ * unflatten + t₁
+up1       ← c₂ * up1 + t₂
+
+Sampling with CFG (γ = 5):
+  u = u_θ(x_t, t, 0) + γ · ( u_θ(x_t, t, c) − u_θ(x_t, t, 0) )
+  x_t ← x_t + (1/T) · u</pre>
+    </div>
+</section>
+
+<!-- ============================== B 2.5-2.6 ============================== -->
+<section class="panel" id="b25">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 2.5 &ndash; 2.6</span>
+        <h2>Training and Sampling the Class-Conditioned UNet</h2>
+        <p class="desc">Same setup as the time-conditioned model (D = 64, batch 64, 10 epochs, Adam lr 1e-2 with the exponential scheduler). Samples use 300 Euler steps, guidance scale &gamma; = 5 and a fixed seed. Each column is one digit, four samples each.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b_class_loss.png" alt="Class-conditioned UNet training loss" loading="lazy"><figcaption><b>Training loss</b>, class-conditioned UNet</figcaption></figure>
+        </div>
+        <div class="grid g3">
+            <figure><img src="results/b_class_epoch1.png" alt="Class-conditioned samples after epoch 1" loading="lazy"><figcaption><b>Epoch 1</b></figcaption></figure>
+            <figure><img src="results/b_class_epoch5.png" alt="Class-conditioned samples after epoch 5" loading="lazy"><figcaption><b>Epoch 5</b></figcaption></figure>
+            <figure><img src="results/b_class_epoch10.png" alt="Class-conditioned samples after epoch 10" loading="lazy"><figcaption><b>Epoch 10</b></figcaption></figure>
+        </div>
+        <p class="desc">Class conditioning converges much faster than time conditioning alone. Already after epoch 1 every column shows the outline of the requested digit. By epoch 5 the digits are clear and epoch 10 gives sharp handwriting for all ten classes.</p>
+
+        <h3 id="b26s">Removing the learning-rate scheduler</h3>
+        <p class="desc">The scheduler starts the learning rate at 1e-2 and slowly lowers it to about 1e-3. Large steps help the model learn fast at the beginning. Small steps near the end let it settle. Without the scheduler, I need one fixed learning rate instead. I picked <b>1e-3</b>, which is where the scheduler ends up. I trained a new model from scratch with this value and kept every other setting the same.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b_nosched_loss.png" alt="No-scheduler training loss" loading="lazy"><figcaption><b>Training loss</b>, constant lr = 1e-3, no scheduler</figcaption></figure>
+        </div>
+        <div class="grid g3">
+            <figure><img src="results/b_nosched_epoch1.png" alt="No-scheduler samples after epoch 1" loading="lazy"><figcaption><b>No scheduler, epoch 1</b></figcaption></figure>
+            <figure><img src="results/b_nosched_epoch5.png" alt="No-scheduler samples after epoch 5" loading="lazy"><figcaption><b>No scheduler, epoch 5</b></figcaption></figure>
+            <figure><img src="results/b_nosched_epoch10.png" alt="No-scheduler samples after epoch 10" loading="lazy"><figcaption><b>No scheduler, epoch 10</b></figcaption></figure>
+        </div>
+        <p class="desc">The fixed learning rate works just as well. By epoch 10, both models draw clean and correct digits in every column. The fixed one is even better at the start. Its epoch 1 samples are already clean, but the scheduled model's epoch 1 samples are still noisy. Its loss also starts much lower. The first spike is about 1.3 instead of about 12. So 1e-2 seems too large for this small network at the beginning. The downside is that I have to choose the learning rate by hand. If it is too large, training stays noisy at the end because the weights keep jumping around. If it is too small, the model learns slowly and may need more epochs. Here 1e-3 was small enough to be stable and large enough to finish learning in 10 epochs.</p>
+    </div>
+</section>
+
+</body>
+</html>
