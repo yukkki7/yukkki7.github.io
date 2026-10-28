@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project 4: Image Warping and Mosaicing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,600&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+    h3 {
+        font-family: 'Playfair Display', Georgia, serif;
+        margin: 2.2rem 0 0.4rem;
+    }
+    .grid {
+        display: grid;
+        gap: 1.2rem;
+        margin: 1.2rem 0 1.8rem;
+        align-items: start;
+    }
+    .g1 { grid-template-columns: 1fr; }
+    .g2 { grid-template-columns: repeat(2, 1fr); }
+    .g3 { grid-template-columns: repeat(3, 1fr); }
+    .g4 { grid-template-columns: repeat(4, 1fr); }
+    .g5 { grid-template-columns: repeat(5, 1fr); }
+    .grid.narrow { max-width: 900px; margin-left: auto; margin-right: auto; }
+    .grid.small { max-width: 520px; }
+    .grid.mosaic { max-width: 720px; margin-left: auto; margin-right: auto; }
+    .grid.centered { max-width: 380px; margin-left: auto; margin-right: auto; }
+    .grid figure {
+        margin: 0;
+        background: #ffffff;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        padding: 8px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    }
+    .grid img {
+        display: block;
+        width: 100%;
+        border-radius: 6px;
+        background: #f2f2f2;
+    }
+    .grid figcaption {
+        margin-top: 8px;
+        font-size: 0.8rem;
+        color: #666666;
+        line-height: 1.5;
+    }
+    .grid figcaption b { color: #111111; font-weight: 600; }
+    pre.code {
+        background: #f7f7f7;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        padding: 16px 20px;
+        font-size: 0.82rem;
+        line-height: 1.55;
+        overflow-x: auto;
+        margin: 1rem 0 1.6rem;
+    }
+    .todo {
+        background: #fff6d6;
+        border-left: 3px solid #e0b400;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        color: #6b5600;
+    }
+    table.simple {
+        border-collapse: collapse;
+        font-size: 0.9rem;
+        margin: 1rem 0 1.6rem;
+    }
+    table.simple th, table.simple td {
+        text-align: left;
+        padding: 8px 16px;
+        border-bottom: 1px solid #ececec;
+    }
+    table.simple th {
+        color: #8a8a8a;
+        font-weight: 500;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    section.panel[id] { scroll-margin-top: 90px; }
+    @media (max-width: 900px) {
+        .g5 { grid-template-columns: repeat(3, 1fr); }
+        .g4 { grid-template-columns: repeat(2, 1fr); }
+        .g3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px) {
+        .g2, .g3, .g4, .g5 { grid-template-columns: 1fr; }
+    }
+    @media print {
+        .toc, nav.top { display: none; }
+        .grid figure, section.panel { break-inside: avoid; }
+        .todo { display: none; }
+    }
+</style>
+</head>
+<body>
+
+<nav class="top">
+    <div class="nav-left">
+        <a href="../index.html">&larr; Home</a>
+        <div class="proj-nav">
+            <a href="../project0/index.html" class="proj-link">Project 0</a>
+            <a href="../project1/index.html" class="proj-link">Project 1</a>
+            <a href="../project2/index.html" class="proj-link">Project 2</a>
+            <a href="../project3/index.html" class="proj-link">Project 3</a>
+            <span class="proj-link current">Project 4</span>
+            <span class="proj-link disabled">Project 5 <span class="tbp">[TBP]</span></span>
+        </div>
+    </div>
+    <span>Project 4</span>
+</nav>
+
+<aside class="toc" aria-label="On this page">
+    <div class="toc-label">Part A</div>
+    <a href="#a1">A.1 Shoot the Pictures</a>
+    <a href="#a2">A.2 Recover Homographies</a>
+    <a href="#a3">A.3 Warp the Images</a>
+    <a href="#a4">A.4 Blend into a Mosaic</a>
+    <a href="#a4-back">Back yard</a>
+    <a href="#a4-front">Front yard</a>
+    <a href="#a4-night">Living room</a>
+</aside>
+
+<section class="panel intro no-divider">
+    <div class="panel-inner">
+        <span class="tag">Project 4 &middot; Part A</span>
+        <h1>Image Warping and Mosaicing</h1>
+        <p class="desc">When the camera only rotates around a fixed center of projection, any two photos are related by a projective transformation (a homography). In this part I recover homographies from hand-clicked correspondences, write inverse warping with nearest-neighbor and bilinear interpolation, use it to rectify planar objects, and finally stitch several photos into a panoramic mosaic with a 2-level Laplacian pyramid blend. All photos were taken with an iPhone and resized so the longer side is 1200 px.</p>
+    </div>
+</section>
+
+<!-- ============================== A.1 ============================== -->
+<section class="panel" id="a1">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 1</span>
+        <h2>Shoot the Pictures</h2>
+        <h3>Back yard</h3>
+        <div class="grid g3">
+            <figure><img src="results/src/IMG_7069.jpg" alt="Back yard, left" loading="lazy"><figcaption><b>IMG_7069</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7070.jpg" alt="Back yard, middle" loading="lazy"><figcaption><b>IMG_7070</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7071.jpg" alt="Back yard, right" loading="lazy"><figcaption><b>IMG_7071</b></figcaption></figure>
+        </div>
+        <h3>Front yard</h3>
+        <div class="grid g4">
+            <figure><img src="results/src/IMG_7079.jpg" alt="Front yard 1" loading="lazy"><figcaption><b>IMG_7079</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7080.jpg" alt="Front yard 2" loading="lazy"><figcaption><b>IMG_7080</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7081.jpg" alt="Front yard 3" loading="lazy"><figcaption><b>IMG_7081</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7082.jpg" alt="Front yard 4" loading="lazy"><figcaption><b>IMG_7082</b></figcaption></figure>
+        </div>
+        <h3>Living room at night</h3>
+        <div class="grid g4">
+            <figure><img src="results/src/IMG_7059.jpg" alt="Living room 1" loading="lazy"><figcaption><b>IMG_7059</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7060.jpg" alt="Living room 2" loading="lazy"><figcaption><b>IMG_7060</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7061.jpg" alt="Living room 3" loading="lazy"><figcaption><b>IMG_7061</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7062.jpg" alt="Living room 4" loading="lazy"><figcaption><b>IMG_7062</b></figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== A.2 ============================== -->
+<section class="panel" id="a2">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 2</span>
+        <h2>Recover Homographies</h2>
+        <p class="desc">A homography maps a point p = (x, y) in one image to p' = (x', y') in the other. Written in homogeneous coordinates, p' = Hp, and the image coordinates are recovered by dividing by the third component w. Fixing the bottom-right entry to 1 leaves 8 unknowns a&ndash;h.</p>
+<pre class="code">[w·x']   [a  b  c] [x]
+[w·y'] = [d  e  f] [y]          x' = (a·x + b·y + c) / (g·x + h·y + 1)
+[ w  ]   [g  h  1] [1]          y' = (d·x + e·y + f) / (g·x + h·y + 1)</pre>
+        <p class="desc">Multiplying both sides by the denominator and moving every unknown to the left turns each correspondence into two linear equations:</p>
+<pre class="code">a·x + b·y + c − g·x·x' − h·y·x' = x'
+d·x + e·y + f − g·x·y' − h·y·y' = y'</pre>
+        <p class="desc">Stacking the two rows for all n correspondences gives the system A h = b, with A of size 2n &times; 8 and h = [a, b, c, d, e, f, g, h]<sup>T</sup>. Four pairs give an exact solution. With more pairs the system is overdetermined so <code>computeH</code> solves it with least squares (<code>np.linalg.lstsq</code>) which averages the few-pixel clicking errors.</p>
+<pre class="code">        a   b   c   d   e   f     g        h
+     [ x₁  y₁  1   0   0   0  −x₁·x₁'  −y₁·x₁' ]         [ x₁' ]
+     [ 0   0   0   x₁  y₁  1  −x₁·y₁'  −y₁·y₁' ]         [ y₁' ]
+A =  [                 ⋮                         ] ,  b = [  ⋮  ]
+     [ xₙ  yₙ  1   0   0   0  −xₙ·xₙ'  −yₙ·xₙ' ]         [ xₙ' ]
+     [ 0   0   0   xₙ  yₙ  1  −xₙ·yₙ'  −yₙ·yₙ' ]         [ yₙ' ]</pre>
+        <p class="desc">I clicked 12 correspondences between IMG_7069 and IMG_7070, spread over the overlap: corners of the planter wall, tops of the fence posts, the toys and the neighbor's roof.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/a2_back_points.jpg" alt="12 correspondences between IMG_7069 and IMG_7070" loading="lazy"><figcaption><b>Correspondences</b> between IMG_7069 (left) and IMG_7070 (right). Points with the same number match.</figcaption></figure>
+        </div>
+        <p class="desc">Recovered homography from IMG_7069 to IMG_7070:</p>
+<pre class="code">    [ 1.54271    0.00665   −458.20456 ]
+H = [ 0.34083    1.38042   −237.16257 ]
+    [ 0.00056    0.00005      1.00000 ]</pre>
+    </div>
+</section>
+
+<!-- ============================== A.3 ============================== -->
+<section class="panel" id="a3">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 3</span>
+        <h2>Warp the Images</h2>
+        <p class="desc">Both warping functions use inverse warping, so the output has no holes. First I decide the output canvas: normally I project the four corners of the input through H and take their bounding box. Every output pixel is then mapped back with H<sup>&minus;1</sup>, divided by the homogeneous coordinate, and looked up in the source image. Pixels that land outside the source get alpha = 0. The functions return an RGBA image together with the canvas offset (x<sub>min</sub>, y<sub>min</sub>), which A.4 uses to place images.</p>
+<pre class="code">canvas ← bounding box of H · (four corners of im)
+for every output pixel (x', y') on the canvas:
+    (x, y) ← H⁻¹ · (x', y', 1), divided by w
+    if (x, y) is outside im:  alpha ← 0
+    else:                     color ← sample im at (x, y),  alpha ← 1</pre>
+        <p class="desc"><b>Nearest neighbor</b> rounds (x, y) to the closest pixel. <b>Bilinear</b> takes the four surrounding pixels and weights them by distance.</p>
+
+
+        <h3>Rectification</h3>
+        <p class="desc">To test the warp, I clicked the four corners of a rectangular object (top-left, top-right, bottom-right, bottom-left) and mapped them to an axis-aligned rectangle with a hand-picked aspect ratio. For rectification the canvas is the target rectangle itself. Projecting the image corners does not work here. The wall in the window photo vanishes inside the frame so the right corners of the photo lie past its horizon line and project to meaningless far-away points like sky.</p>
+        <div class="grid g3">
+            <figure><img src="results/src/IMG_7078.jpg" alt="Window photographed at an angle" loading="lazy"><figcaption><b>Input:</b> a window seen at an angle</figcaption></figure>
+            <figure><img src="results/a3_window_nn.png" alt="Window rectified with nearest neighbor" loading="lazy"><figcaption><b>Nearest neighbor</b>, 150 &times; 255 target</figcaption></figure>
+            <figure><img src="results/a3_window_bilinear.png" alt="Window rectified with bilinear" loading="lazy"><figcaption><b>Bilinear</b></figcaption></figure>
+        </div>
+        <div class="grid g1 centered">
+            <figure><img src="results/src/ipad_small.jpg" alt="iPad lying on a desk" loading="lazy"><figcaption><b>Input:</b> an iPad lying on a desk</figcaption></figure>
+        </div>
+        <div class="grid g2">
+            <figure><img src="results/a3_ipad_nn.png" alt="iPad screen rectified with nearest neighbor" loading="lazy"><figcaption><b>Nearest neighbor</b>, 440 &times; 300 target</figcaption></figure>
+            <figure><img src="results/a3_ipad_bilinear.png" alt="iPad screen rectified with bilinear" loading="lazy"><figcaption><b>Bilinear</b></figcaption></figure>
+        </div>
+
+        <h3>Nearest neighbor vs. bilinear</h3>
+        <table class="simple">
+            <tr><th>Image</th><th>Output size</th><th>Nearest neighbor</th><th>Bilinear</th></tr>
+            <tr><td>Window</td><td>151 &times; 256</td><td>0.11 s</td><td>0.31 s</td></tr>
+            <tr><td>iPad</td><td>441 &times; 301</td><td>0.35 s</td><td>1.10 s</td></tr>
+        </table>
+        <p class="desc">Bilinear is about 3&times; slower since it reads four pixels for each output pixel while nearest neighbor reads one. But nearest neighbor causes aliasing. It rounds each point to the closest pixel so edges become jagged and slightly bent. On the window, the top edge turns into a zigzag and the frame shifts in small steps. On the iPad, the letters lose their shape. Bilinear averages nearby pixels so edges stay smooth and the text is easy to read. The result is a little softer. So I use bilinear for the mosaics.</p>
+    </div>
+</section>
+
+<!-- ============================== A.4 ============================== -->
+<section class="panel" id="a4">
+    <div class="panel-inner">
+        <span class="tag">Part A &middot; 4</span>
+        <h2>Blend the Images into a Mosaic</h2>
+        <p class="desc"><b>Registration.</b> I clicked points only between neighboring images and computed one homography per pair. One image near the middle is the reference. It stays unwarped. To map an image to the reference, I chain the pairwise homographies. Images on the right use the inverses, because their pairs point the other way.</p>
+<pre class="code">H[ref] = I
+left  of ref:  H[i] = H[i+1] @ H_pair[i]            # i → i+1 → … → ref
+right of ref:  H[i] = H[i−1] @ inv(H_pair[i−1])     # i → i−1 → … → ref</pre>
+        <p class="desc"><b>One-shot warping.</b> I project the corners of all images into the reference frame. Their bounding box is the size of the final mosaic. Then I warp every image onto this canvas with bilinear interpolation. This gives a stack of aligned RGBA images.</p>
+        <p class="desc"><b>Blending.</b> I tried three ways to combine the stack. The results on the back yard set are shown below.</p>
+        <ol class="desc">
+            <li><b>Overlay:</b> paste the images on top of each other. The geometry lines up. But each photo has a slightly different exposure, so there are hard seams in the sky and grass.</li>
+            <li><b>Feathering:</b> each image gets a weight map. I compute it with a distance transform of the alpha mask (<code>distance_transform_edt</code>). The weight is 1 deep inside the image and drops to 0 at its edges. The mosaic is the weighted average &Sigma; w<sub>i</sub>&middot;img<sub>i</sub> / &Sigma; w<sub>i</sub>. The seams are gone, but the fence looks blurry. The homographies are off by a few pixels. Averaging two shifted copies of fine details creates ghosting.</li>
+            <li><b>2-level Laplacian pyramid:</b> each image is split into two bands. The low band is the image after <code>pyrDown</code>. The high band is the image minus <code>pyrUp</code>(low), which keeps only the details. I blend the low band with the feathering weights. This smooths out the exposure. I do not average the high band. Instead, each pixel takes its details from the image with the largest weight. This keeps the details sharp. Finally, I add pyrUp(low) and the high band back together.</li>
+        </ol>
+
+        <div class="grid g3">
+            <figure><img src="results/a4_back_overlay.jpg" alt="Back yard, overlay" loading="lazy"><figcaption><b>Overlay:</b> visible seams</figcaption></figure>
+            <figure><img src="results/a4_back_blended.jpg" alt="Back yard, feathering" loading="lazy"><figcaption><b>Feathering:</b> no seams but the fence is ghosted</figcaption></figure>
+            <figure><img src="results/a4_back.jpg" alt="Back yard, Laplacian pyramid" loading="lazy"><figcaption><b>2-level pyramid:</b> no seams and a sharper fence</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<section class="panel" id="a4-back">
+    <div class="panel-inner">
+        <span class="tag">Mosaic 1</span>
+        <h2>Back Yard</h2>
+        <p class="desc">IMG_7069, IMG_7070, IMG_7071, with IMG_7070 as the reference.</p>
+        <div class="grid g3">
+            <figure><img src="results/src/IMG_7069.jpg" alt="IMG_7069" loading="lazy"><figcaption><b>IMG_7069</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7070.jpg" alt="IMG_7070" loading="lazy"><figcaption><b>IMG_7070</b> (reference)</figcaption></figure>
+            <figure><img src="results/src/IMG_7071.jpg" alt="IMG_7071" loading="lazy"><figcaption><b>IMG_7071</b></figcaption></figure>
+        </div>
+        <div class="grid g1 mosaic">
+            <figure><img src="results/a4_back.jpg" alt="Back yard mosaic" loading="lazy"><figcaption><b>Back yard mosaic</b></figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<section class="panel" id="a4-front">
+    <div class="panel-inner">
+        <span class="tag">Mosaic 2</span>
+        <h2>Front Yard</h2>
+        <p class="desc">IMG_7079 to IMG_7082, with IMG_7080 as the reference. The right side is stretched more, because those images are further from the reference.</p>
+        <div class="grid g4">
+            <figure><img src="results/src/IMG_7079.jpg" alt="IMG_7079" loading="lazy"><figcaption><b>IMG_7079</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7080.jpg" alt="IMG_7080" loading="lazy"><figcaption><b>IMG_7080</b> (reference)</figcaption></figure>
+            <figure><img src="results/src/IMG_7081.jpg" alt="IMG_7081" loading="lazy"><figcaption><b>IMG_7081</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7082.jpg" alt="IMG_7082" loading="lazy"><figcaption><b>IMG_7082</b></figcaption></figure>
+        </div>
+        <div class="grid g1 mosaic">
+            <figure><img src="results/a4_front.jpg" alt="Front yard mosaic" loading="lazy"><figcaption><b>Front yard mosaic</b></figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<section class="panel" id="a4-night">
+    <div class="panel-inner">
+        <span class="tag">Mosaic 3</span>
+        <h2>Living Room at Night</h2>
+        <p class="desc">IMG_7059 to IMG_7062, with IMG_7061 as the reference.</p>
+        <div class="grid g4">
+            <figure><img src="results/src/IMG_7059.jpg" alt="IMG_7059" loading="lazy"><figcaption><b>IMG_7059</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7060.jpg" alt="IMG_7060" loading="lazy"><figcaption><b>IMG_7060</b></figcaption></figure>
+            <figure><img src="results/src/IMG_7061.jpg" alt="IMG_7061" loading="lazy"><figcaption><b>IMG_7061</b> (reference)</figcaption></figure>
+            <figure><img src="results/src/IMG_7062.jpg" alt="IMG_7062" loading="lazy"><figcaption><b>IMG_7062</b></figcaption></figure>
+        </div>
+        <div class="grid g1 mosaic">
+            <figure><img src="results/a4_night.jpg" alt="Living room mosaic" loading="lazy"><figcaption><b>Living room mosaic</b></figcaption></figure>
+        </div>
+    </div>
+</section>
+
+</body>
+</html>
