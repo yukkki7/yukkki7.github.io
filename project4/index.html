@@ -125,6 +125,12 @@
     <a href="#a4-back">Back yard</a>
     <a href="#a4-front">Front yard</a>
     <a href="#a4-night">Living room</a>
+    <div class="toc-label">Part B</div>
+    <a href="#b1">B.1 Corner Detection</a>
+    <a href="#b2">B.2 Feature Descriptors</a>
+    <a href="#b3">B.3 Feature Matching</a>
+    <a href="#b4">B.4 RANSAC</a>
+    <a href="#b4-mosaics">Automatic Mosaics</a>
 </aside>
 
 <section class="panel intro no-divider">
@@ -303,6 +309,116 @@ right of ref:  H[i] = H[i−1] @ inv(H_pair[i−1])     # i → i−1 → … �
         </div>
         <div class="grid g1 mosaic">
             <figure><img src="results/a4_night.jpg" alt="Living room mosaic" loading="lazy"><figcaption><b>Living room mosaic</b></figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== Part B ============================== -->
+<section class="panel intro">
+    <div class="panel-inner">
+        <span class="tag">Project 4 &middot; Part B</span>
+        <h1>Feature Matching for Autostitching</h1>
+        <p class="desc">In Part A I clicked the correspondences by hand. In Part B the computer finds them. I follow a simplified version of &ldquo;Multi-Image Matching using Multi-Scale Oriented Patches&rdquo; (Brown et al.). The steps are:</p>
+        <ol class="desc">
+            <li>Detect Harris corners.</li>
+            <li>Keep a well-spread subset with ANMS.</li>
+            <li>Describe each corner with a small normalized patch.</li>
+            <li>Match the patches between images.</li>
+            <li>Remove wrong matches with RANSAC.</li>
+        </ol>
+        <p class="desc">The homographies from RANSAC then go into the warping and blending code from Part A.</p>
+    </div>
+</section>
+
+<!-- ============================== B.1 ============================== -->
+<section class="panel" id="b1">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 1</span>
+        <h2>Harris Corners and ANMS</h2>
+        <p class="desc"><b>Harris corners.</b> I use the provided <code>harris.py</code> at a single scale. It gives the corner strength h at every pixel and returns the local maxima as corners. I drop points within 20 px of the border, so every corner has a full 40&times;40 window for B.2. On IMG_7069 it finds 27,808 corners. They cover almost the whole image, even noise in the sky. Many are crowded in the trees.</p>
+        <p class="desc"><b>Adaptive Non-Maximal Suppression (ANMS).</b> I want points that are strong <i>and</i> spread out. A homography fitted to points in one area is not accurate in other areas. For each corner i, ANMS finds a suppression radius r<sub>i</sub>. It is the distance to the nearest corner that is clearly stronger.</p>
+<pre class="code">r_i = min_j ‖x_i − x_j‖    such that  f(x_i) &lt; c_robust · f(x_j),   c_robust = 0.9</pre>
+        <p class="desc">The strongest corner gets r = &infin;. A weak corner next to a strong one gets a small r. A weak corner in an empty area can still get a large r. I keep the 500 corners with the largest r. I compute all radii at once with an N&times;N distance matrix. For 27,808 corners, this matrix would need several GB. So I first keep the 3,000 strongest corners and run ANMS on them. The weakest corners would almost never be in the final 500 anyway.</p>
+        <div class="grid g2">
+            <figure><img src="results/b1_harris.jpg" alt="All Harris corners on IMG_7069" loading="lazy"><figcaption><b>All Harris corners</b> (27,808)</figcaption></figure>
+            <figure><img src="results/b1_anms.jpg" alt="500 corners chosen by ANMS on IMG_7069" loading="lazy"><figcaption><b>After ANMS</b> (500). The points spread over the trees, fence, planter and grass. The sky has no real corners, so no points are kept there.</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== B.2 ============================== -->
+<section class="panel" id="b2">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 2</span>
+        <h2>Feature Descriptors</h2>
+        <p class="desc">A corner position alone cannot be compared between two photos. I also need to describe the area around it. For each corner:</p>
+        <ol class="desc">
+            <li>Take the 40&times;40 window around it.</li>
+            <li>Blur it with a Gaussian (&sigma; = 2).</li>
+            <li>Downsample it to 8&times;8 with area averaging. Each descriptor pixel is the average of a 5&times;5 block.</li>
+            <li>Bias/gain-normalize it: (I &minus; &mu;) / &sigma;.</li>
+        </ol>
+        <p class="desc">The blur prevents aliasing. It also makes the descriptor robust to the 1&ndash;2 px error in corner positions. The normalization removes changes in brightness and contrast between photos. Each corner becomes a 64-dimensional vector. </p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b2_descriptors.jpg" alt="Several 40x40 windows and their 8x8 descriptors" loading="lazy"><figcaption><b>Extracted features.</b> Each descriptor looks like a small, blurred copy of its window. Features 1 and 2 are a tree edge against the sky. Feature 5 is a fence post meeting a rail. Features 0 and 4 are leaves and grass. This texture looks the same in many places, so these features are hard to match.</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== B.3 ============================== -->
+<section class="panel" id="b3">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 3</span>
+        <h2>Feature Matching</h2>
+        <p class="desc">For each descriptor in image 1, I compute the squared distance to all descriptors in image 2. Then I find the nearest and the second nearest. A nearest neighbor always exists, even for a point that is not in image 2. So the distance alone is not enough. Instead I use Lowe&rsquo;s ratio test. A match is kept only if the best candidate is much better than the second best.</p>
+<pre class="code">keep (i, j)  if  d²(1-NN) / d²(2-NN) &lt; 0.6</pre>
+        <p class="desc">I chose the threshold from Figure 6b of the paper. Its x-axis is the same ratio of squared errors. Correct matches peak around 0.1. Incorrect matches stay near zero until about 0.5, then rise quickly. The two curves cross near 0.67. I use 0.6, just below the crossing. This keeps many correct matches. RANSAC removes the remaining outliers.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b3_matches.jpg" alt="198 matches between IMG_7069 and IMG_7070" loading="lazy"><figcaption><b>198 matches</b> between IMG_7069 and IMG_7070. Most lines are parallel and correct. Some matches on the fence, planter and grass are wrong. These repeated patterns look alike in many places.</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<!-- ============================== B.4 ============================== -->
+<section class="panel" id="b4">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 4</span>
+        <h2>RANSAC for Robust Homography</h2>
+<pre class="code">repeat 2000 times:
+    pick 4 random matches
+    H ← computeH(those 4 pairs)                   # exact solution
+    inliers ← matches with ‖H·p_i − p_i'‖ &lt; 3 px
+    keep the largest inlier set
+H ← computeH(all inliers)                        # least squares</pre>
+        <p class="desc">If all 4 sampled matches are correct, the H agrees with the other correct matches. So it gets many inliers. Wrong matches are wrong in different ways, so they never agree on one H. As a check, I projected my hand-clicked points from Part A with the automatic H. The mean error was about 4 px. The manual H has 2.9 px, but it was fitted to those same points. So the two are close.</p>
+        <div class="grid g1 narrow">
+            <figure><img src="results/b4_ransac.jpg" alt="RANSAC inliers between IMG_7069 and IMG_7070" loading="lazy"><figcaption><b>RANSAC inliers:</b> 150 of the 198 matches. The wrong matches on the grass and fence are gone.</figcaption></figure>
+        </div>
+    </div>
+</section>
+
+<section class="panel" id="b4-mosaics">
+    <div class="panel-inner">
+        <span class="tag">Part B &middot; 4</span>
+        <h2>Manual vs. Automatic Mosaics</h2>
+        <p class="desc">The automatic homographies replace the hand-clicked ones. Everything else is the same as Part A. The automatic results are slightly better than the manual ones. I think the main reason is clicking error. Each point I clicked by hand can be off by a few pixels. With only about a dozen points, these errors do not average out. My clicks were also limited to areas with clear corners, so some parts of the overlap had no points. The automatic H is fitted to over a hundred inliers spread across the overlap. So the errors average out, and the whole overlap is covered. The mosaic shapes also differ slightly, because the two homographies are not exactly the same.</p>
+
+        <h3>Back yard</h3>
+        <div class="grid g2">
+            <figure><img src="results/a4_back.jpg" alt="Back yard, manual" loading="lazy"><figcaption><b>Manual</b> (hand-clicked points)</figcaption></figure>
+            <figure><img src="results/b4_back.jpg" alt="Back yard, automatic" loading="lazy"><figcaption><b>Automatic</b> (Harris + ANMS + matching + RANSAC)</figcaption></figure>
+        </div>
+
+        <h3>Front yard</h3>
+        <div class="grid g2">
+            <figure><img src="results/a4_front.jpg" alt="Front yard, manual" loading="lazy"><figcaption><b>Manual</b></figcaption></figure>
+            <figure><img src="results/b4_front.jpg" alt="Front yard, automatic" loading="lazy"><figcaption><b>Automatic</b></figcaption></figure>
+        </div>
+
+        <h3>Living room at night</h3>
+        <div class="grid g2">
+            <figure><img src="results/a4_night.jpg" alt="Living room, manual" loading="lazy"><figcaption><b>Manual</b></figcaption></figure>
+            <figure><img src="results/b4_night.jpg" alt="Living room, automatic" loading="lazy"><figcaption><b>Automatic</b></figcaption></figure>
         </div>
     </div>
 </section>
